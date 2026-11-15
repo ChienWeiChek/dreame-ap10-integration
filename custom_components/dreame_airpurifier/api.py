@@ -280,8 +280,8 @@ class DreameAirPurifier:
         """Device is 'on' unless in sleep mode at speed 1 (our soft-off state)."""
         if not self._power:
             return False
-        # Sleep mode + speed 1 = our "off" state
-        if self._mode == MODE_SLEEP_PURIFICATION and self._fan_speed <= 1:
+        # Sleep mode + speed 1 = our "off" state (NP10: Sleep alone, its speed write forces Custom)
+        if self._mode == MODE_SLEEP_PURIFICATION and (self.is_np10 or self._fan_speed <= 1):
             return False
         return True
     @property
@@ -372,6 +372,11 @@ class DreameAirPurifier:
         if self._power:
             # Device is on but in "sleep off" state - switch to AI Purify
             return self.set_mode(MODE_AI_PURIFY)
+        if self.is_np10:
+            # NP10 from real standby: 2/1 is read-only (-4002) and toggle 2/3 only beeps,
+            # then reads go silent. No known remote wake; must be powered on in the app.
+            _LOGGER.warning("%s is in standby; power it on from the Dreamehome app", self._name)
+            return False
         else:
             # Try toggle first, then set AI Purify
             self.toggle_power()
@@ -380,6 +385,9 @@ class DreameAirPurifier:
     def turn_off(self) -> bool:
         """Turn off: switch to Sleep mode speed 1 (keeps device cloud-connected)."""
         # Don't actually power off - device can't be woken remotely
+        if self.is_np10:
+            # NP10: any speed write switches to Custom; Sleep already runs at speed 1
+            return self.set_mode(MODE_SLEEP_PURIFICATION)
         self.set_mode(MODE_SLEEP_PURIFICATION)
         return self.set_fan_speed(1)
 

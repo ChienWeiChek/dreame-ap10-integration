@@ -33,6 +33,16 @@ assert (np10.prefilter_life, np10.prefilter_days_left, np10.electrode_life, np10
 np10.set_child_lock(False)
 np10.set_fan_speed_percent(100)
 assert np10_api.writes == [(6, 10, 0), (2, 4, 3)], np10_api.writes
+np10_api.writes.clear()
+np10.turn_off()
+assert np10_api.writes == [(2, 3, 2)], np10_api.writes  # Sleep only, no speed write
+np10_api.values[(2, 3)], np10_api.values[(2, 4)] = 2, 2
+np10.update()
+assert not np10.is_on  # NP10 Sleep counts as off whatever the speed
+np10_api.values[(2, 1)] = 2  # real standby
+np10.update()
+np10_api.writes.clear()
+assert np10.turn_on() is False and np10_api.writes == []  # no toggle, no writes
 
 # AP10 keeps its 5 modes / 5 speeds / child lock at 6/5
 ap10_api = FakeAPI({(2, 1): 1, (2, 3): 3, (2, 4): 4, (6, 5): 1})
