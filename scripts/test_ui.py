@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from probe_properties import api_mod, load_env
 
 # Properties known on the NP10 (3.4/3.5 only exist in the cloud cache); editable on the page.
-DEFAULT_PROPS = "2.1 2.2 2.3 2.4 3.4 3.5 3.12 4.7 4.8 4.9 4.10 4.11 4.12 6.1 6.3 6.4 6.8 6.10 6.15"
+DEFAULT_PROPS = "2.1 2.2 2.3 2.4 3.4 3.5 3.12 4.7 4.8 4.9 4.10 4.11 4.12 6.1 6.3 6.4 6.8 6.10 6.15 6.23"
 _client = None
 _devices = {}  # did -> bindDomain host
 
@@ -106,7 +106,8 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:320px;ov
 <div class="row">Mode: <button onclick="setp(2,3,0)">AI Purify</button><button onclick="setp(2,3,2)">Sleep</button><button onclick="setp(2,3,3)">Custom</button></div>
 <div class="row">Speed: <button onclick="setp(2,4,1)">1</button><button onclick="setp(2,4,2)">2</button><button onclick="setp(2,4,3)">3</button></div>
 <div class="row">Child lock: <button onclick="setp(6,10,1)">On</button><button onclick="setp(6,10,0)">Off</button>
-&nbsp; Timer: <button onclick="setp(6,8,0)">Off</button><button onclick="setp(6,8,1)">1 h</button></div></section>
+&nbsp; Timer: <button onclick="setp(6,8,0)">Off</button><button onclick="setp(6,8,1)">1 h</button></div>
+<div class="row">Light: <button onclick="setp(6,23,0)">Off</button><button onclick="setp(6,23,4)">Ambient light</button><button onclick="setp(6,23,5)">Air quality</button></div></section>
 
 <section><h2>Set property</h2>
 <div class="row">siid <input id="ss" class="n" type="number"> piid <input id="sp" class="n" type="number">
@@ -125,7 +126,7 @@ function status(v){const has=k=>k in v,t=(l,x)=>`<div class="tile"><b>${l}</b><s
  $('status').innerHTML=[t('Power',{1:'On',2:'Off (standby)'}[v['2.1']]??(has('2.1')?'? '+v['2.1']:'–')),
   t('Mode',has('2.3')?MODES[v['2.3']]??'? '+v['2.3']:'–'),t('Fan speed',v['2.4']??'–'),
   t('PM2.5',has('3.5')?v['3.5']+' µg/m³':'–'),t('Air quality',has('3.4')?AQ[v['3.4']]??'level '+v['3.4']:'–'),
-  t('Child lock',has('6.10')?(v['6.10']?'On':'Off'):'–'),t('Delayed power off',has('6.8')?(v['6.8']?v['6.8']+' h':'OFF'):'–'),
+  t('Child lock',has('6.10')?(v['6.10']?'On':'Off'):'–'),t('Light',has('6.23')?{0:'Off',4:'Ambient light',5:'Air quality'}[v['6.23']]??'? '+v['6.23']:'–'),t('Delayed power off',has('6.8')?(v['6.8']?v['6.8']+' h':'OFF'):'–'),
   t('Pre-filter',pct('4.7')+' · '+d('4.8')),t('High-voltage electrode',pct('4.9')+' · '+d('4.10'))].join('');
  $('stime').textContent='updated '+new Date().toLocaleTimeString()}
 let timer=null,busy=false;

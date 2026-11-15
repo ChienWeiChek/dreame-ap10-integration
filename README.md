@@ -89,7 +89,7 @@ Power uses toggle action `siid=2, aiid=3`. Direct writes to power (`siid=2, piid
 
 ## NP10 property map (experimental)
 
-Probed on `dreame.airp.u2532` (app name "Air Purifier NP10") with `scripts/probe_properties.py`. Power, mode, speed and timer share AP-10 codes. Exposed entities: fan (AI Purify / Sleep Purification / Custom Mode, speed 1–3), child lock, timer, pre-filter and high-voltage electrode life and days left, PM2.5 and air quality level. No light, voice, filter reset or remote power-on yet.
+Probed on `dreame.airp.u2532` (app name "Air Purifier NP10") with `scripts/probe_properties.py`. Power, mode, speed and timer share AP-10 codes. Exposed entities: fan (AI Purify / Sleep Purification / Custom Mode, speed 1–3), child lock, timer, pre-filter and high-voltage electrode life and days left, PM2.5 and air quality level, light (Off / Ambient light / Air quality). No voice, filter reset or remote power-on yet.
 
 | siid | piid | Property | Values |
 |------|------|----------|--------|
@@ -102,6 +102,7 @@ Probed on `dreame.airp.u2532` (app name "Air Purifier NP10") with `scripts/probe
 | 4 | 9 / 10 | Electrode life % / days left | life % placement inferred |
 | 6 | 8 | Delayed power off | hours |
 | 6 | 10 | Child lock | 0=off, 1=on |
+| 6 | 23 | Light | 0=off, 4=Ambient light, 5=Air quality |
 
 Power on/off uses the same Sleep + speed 1 soft-off as the AP-10; the power toggle action has not been verified on the NP10.
 

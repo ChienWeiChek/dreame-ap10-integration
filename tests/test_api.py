@@ -29,7 +29,7 @@ class FakeAPI:
 
 # NP10 values captured from a real u2532 (Custom mode, speed 2, child lock on, timer 2h)
 np10_api = FakeAPI({(2, 1): 1, (2, 3): 3, (2, 4): 2, (6, 8): 2, (6, 10): 1,
-                    (4, 7): 100, (4, 8): 30, (4, 9): 100, (4, 10): 90, (3, 4): 1, (3, 5): 13},
+                    (4, 7): 100, (4, 8): 30, (4, 9): 100, (4, 10): 90, (3, 4): 1, (3, 5): 13, (6, 23): 5},
                     cloud_only={(3, 4), (3, 5)})  # device not answering PM2.5 -> cloud fallback
 np10 = api.DreameAirPurifier(np10_api, {"did": 1, "model": "dreame.airp.u2532", "mac": "AA:BB"})
 assert np10.update()
@@ -43,9 +43,11 @@ np10_api.values[(3, 5)] = 9
 np10.update()
 assert np10.pm25 == 9  # straight from the device when it answers
 assert (np10.prefilter_life, np10.prefilter_days_left, np10.electrode_life, np10.electrode_days_left) == (100, 30, 100, 90)
+assert np10.np10_light_option == "Air quality"
 np10.set_child_lock(False)
 np10.set_fan_speed_percent(100)
-assert np10_api.writes == [(6, 10, 0), (2, 4, 3)], np10_api.writes
+assert np10.set_np10_light(4) and not np10.set_np10_light(2)  # 2 is not a known light value
+assert np10_api.writes == [(6, 10, 0), (2, 4, 3), (6, 23, 4)], np10_api.writes
 np10_api.writes.clear()
 np10.turn_off()
 assert np10_api.writes == [(2, 3, 2)], np10_api.writes  # Sleep only, no speed write
@@ -63,6 +65,7 @@ ap10 = api.DreameAirPurifier(ap10_api, {"did": 2, "model": "dreame.airp.u2507", 
 assert ap10.update()
 assert not ap10.is_np10 and ap10.speed_count == 5 and len(ap10.preset_modes) == 5
 assert ap10.fan_speed_percent == 80 and ap10.child_lock is True and ap10.prefilter_life is None
+assert not ap10.set_np10_light(4)  # NP10-only property never written to an AP10
 ap10.set_child_lock(False)
 ap10.set_fan_speed_percent(40)
 assert ap10_api.writes == [(6, 5, 0), (2, 4, 2)], ap10_api.writes

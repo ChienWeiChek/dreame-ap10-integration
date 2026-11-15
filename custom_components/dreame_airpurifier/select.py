@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from .api import DreameAirPurifier, LIGHT_CONTROL_OPTIONS, VOICE_INTERACTION_VOLUME_OPTIONS
+from .api import DreameAirPurifier, LIGHT_CONTROL_OPTIONS, NP10_LIGHT_OPTIONS, VOICE_INTERACTION_VOLUME_OPTIONS
 from .const import DOMAIN
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -12,7 +12,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
     for p in data["purifiers"]:
         if p.is_np10:
-            continue  # NP10 has no light or voice properties
+            entities.append(DreameNP10LightSelect(data["coordinator"], p))  # no voice props on NP10
+            continue
         entities.extend([DreameLightControlSelect(data["coordinator"], p), DreameVoiceInteractionVolumeSelect(data["coordinator"], p)])
     async_add_entities(entities)
 
@@ -47,4 +48,14 @@ class DreameVoiceInteractionVolumeSelect(DreameBaseSelect):
     def current_option(self): return self._purifier.voice_interaction_volume_option
     async def async_select_option(self, option: str) -> None:
         await self.hass.async_add_executor_job(self._purifier.set_voice_interaction_volume, VOICE_INTERACTION_VOLUME_OPTIONS[option])
+        await self.coordinator.async_request_refresh()
+
+class DreameNP10LightSelect(DreameBaseSelect):
+    _attr_icon = "mdi:lightbulb"
+    _attr_options = list(NP10_LIGHT_OPTIONS)
+    def __init__(self, c, p): super().__init__(c, p, "light_control", "Light")
+    @property
+    def current_option(self): return self._purifier.np10_light_option
+    async def async_select_option(self, option: str) -> None:
+        await self.hass.async_add_executor_job(self._purifier.set_np10_light, NP10_LIGHT_OPTIONS[option])
         await self.coordinator.async_request_refresh()
