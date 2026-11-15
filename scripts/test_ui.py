@@ -1,8 +1,8 @@
-"""Local test page: read/set properties and call actions on your Dreame purifiers from a browser.
+"""Local test page: read and set properties on your Dreame purifiers from a browser.
 
 Usage:  .venv/bin/python scripts/test_ui.py [port]    then open http://127.0.0.1:8765
 Credentials come from the repo .env (DREAME_USERNAME / DREAME_PASSWORD / DREAME_COUNTRY).
-Listens on 127.0.0.1 only. Writes and actions go to the real device.
+Listens on 127.0.0.1 only. Writes go to the real device.
 """
 import json
 import sys
@@ -59,9 +59,8 @@ def handle(req):
     if op == "set":
         value = json.loads(req["value"])  # 1, "text", true ...
         return c.send_command(did, "set_properties", [{"did": did, "siid": int(req["siid"]), "piid": int(req["piid"]), "value": value}], host)
-    if op == "action":
-        params = json.loads(req.get("params") or "[]")
-        return c.send_command(did, "action", {"did": did, "siid": int(req["siid"]), "aiid": int(req["aiid"]), "in": params}, host)
+    # No free-form actions: unknown NP10 actions 2/1 and 2/2 coincided with the device
+    # being unbound from the Dreamehome account (2026-11-15).
     raise ValueError(f"unknown op {op!r}")
 
 
@@ -100,10 +99,6 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:320px;ov
 <div class="row">siid <input id="ss" class="n" type="number"> piid <input id="sp" class="n" type="number">
 value (JSON) <input id="sv" class="n" value="1"> <button onclick="setp(+ss.value,+sp.value,sv.value)">Set</button></div></section>
 
-<section><h2>Call action</h2>
-<div class="row">siid <input id="as" class="n" type="number"> aiid <input id="aa" class="n" type="number">
-in (JSON) <input id="ai" value="[]" style="width:6em"> <button onclick="act()">Call</button></div>
-<p class="warn">Unknown actions can power the purifier into a standby it cannot be woken from remotely (toggle 2/3 did this on the NP10).</p></section>
 
 <section><h2>Log</h2><pre id="log" aria-live="polite"></pre></section>
 <script>
@@ -116,8 +111,6 @@ async function read(){$('rmsg').textContent='reading…';const res=await call({o
  $('tbl').innerHTML='<tr><th>prop</th><th>value</th><th>before</th></tr>'+Object.keys(now).map(k=>`<tr><td>${k}</td><td class="${k in last&&last[k]!==now[k]?'chg':''}">${now[k]}</td><td>${last[k]??''}</td></tr>`).join('');
  $('rmsg').textContent=Object.keys(now).length?'':'no data (offline or deep standby?)';last=now}
 async function setp(s,p,v){await call({op:'set',did:$('dev').value,siid:s,piid:p,value:String(v)});setTimeout(read,2000)}
-async function act(){if(!confirm('Send action '+$('as').value+'/'+$('aa').value+' to the real device?'))return;
- await call({op:'action',did:$('dev').value,siid:+$('as').value,aiid:+$('aa').value,params:$('ai').value});setTimeout(read,2000)}
 </script></body></html>""".replace("__PROPS__", DEFAULT_PROPS)
 
 

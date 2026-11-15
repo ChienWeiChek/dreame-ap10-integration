@@ -43,7 +43,8 @@ Real testing means copying `custom_components/dreame_airpurifier/` into a Home A
 
 - `tests/test_api.py`: assert-based self-check of the per-model logic with a fake API (`.venv/bin/python tests/test_api.py`).
 - `scripts/probe_properties.py [model] [max-siid] [max-piid]`: read-only dump of every readable property, used to map new models. Credentials come from a gitignored `.env` (`DREAME_USERNAME`, `DREAME_PASSWORD`, `DREAME_COUNTRY`) or prompts. Map a property by changing one setting in the app, re-running, and diffing.
-- `scripts/test_ui.py [port]`: local web page (http://127.0.0.1:8765) to read and set properties and call actions on the real device, using the same `.env`. Its read table highlights values that changed since the last read. Confirm a command here before wiring it into HA. On the NP10, toggle action 2/3 from standby only beeped and left the device silent.
+- `scripts/test_ui.py [port]`: local web page (http://127.0.0.1:8765) to read and set properties on the real device, using the same `.env`. Its read table highlights values that changed since the last read. Confirm a property write here before wiring it into HA.
+- **Never send unknown actions to a real device.** On the NP10, toggle 2/3 from standby only beeped and left the device silent. Actions 2/1 and 2/2 were followed by the device being unbound from the owner's Dreamehome account, so it had to be re-paired. Free-form actions were removed from the test page for this reason. NP10 remote power-on is unsolved: properties 2.1 and 2.2 are read-only (-4002), and a mode write while off is acknowledged but not applied.
 
 ## Scope rules (from README)
 
