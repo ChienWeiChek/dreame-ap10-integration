@@ -18,11 +18,8 @@ _spec.loader.exec_module(api_mod)
 BATCH = 5  # small batches: big get_properties calls time out
 
 
-def main():
-    model_filter = sys.argv[1] if len(sys.argv) > 1 else ".airp."
-    max_siid = int(sys.argv[2]) if len(sys.argv) > 2 else 10
-    max_piid = int(sys.argv[3]) if len(sys.argv) > 3 else 20
-    # Optional repo-root .env (KEY=value lines, gitignored); missing values are prompted for.
+def load_env() -> dict:
+    """Optional repo-root .env (KEY=value lines, gitignored)."""
     env_file = pathlib.Path(__file__).resolve().parent.parent / ".env"
     env = {}
     if env_file.exists():
@@ -30,6 +27,14 @@ def main():
             key, sep, value = line.partition("=")
             if sep and not key.strip().startswith("#"):
                 env[key.strip()] = value.strip().strip("'\"")
+    return env
+
+
+def main():
+    model_filter = sys.argv[1] if len(sys.argv) > 1 else ".airp."
+    max_siid = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+    max_piid = int(sys.argv[3]) if len(sys.argv) > 3 else 20
+    env = load_env()  # missing values are prompted for
     user = env.get("DREAME_USERNAME") or input("Dreamehome email: ").strip()
     password = env.get("DREAME_PASSWORD") or getpass.getpass("Password: ")
     country = env.get("DREAME_COUNTRY") or input("Region [us/eu/cn/sg/kr/ru] (us): ").strip() or "us"
