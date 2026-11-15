@@ -68,8 +68,9 @@ ACTION_TOGGLE_POWER = {"siid": 2, "aiid": 3}
 
 # === dreame.airp.u2532 (Dreame NP10) ===
 # Probed 2026-11-15. Power/mode/speed/timer share AP10 codes; child lock moved to 6/10.
-# PM2.5 (3/5) and air quality level (3/4, 1=Excellent) are notify-only: get_properties
-# never returns them, so they come from the cloud cache (matched the app). 3/12 is unknown.
+# PM2.5 (3/5) and air quality level (3/4, 1=Excellent): get_properties returned them only
+# sometimes (not before a re-pair, yes after), so the cloud cache fills them in when missing.
+# Both matched the app. 3/12 is unknown.
 # Light/voice/tone/play/location absent.
 NP10_MODEL = "dreame.airp.u2532"
 NP10_MODES = [MODE_AI_PURIFY, MODE_SLEEP_PURIFICATION, MODE_CUSTOM]
@@ -81,7 +82,7 @@ NP10_PROP_PREFILTER_DAYS_LEFT = {"siid": 4, "piid": 8}
 NP10_PROP_ELECTRODE_LIFE = {"siid": 4, "piid": 9}
 NP10_PROP_ELECTRODE_DAYS_LEFT = {"siid": 4, "piid": 10}
 NP10_POLL_BATCHES = [
-    [PROP_POWER, PROP_MODE, PROP_FAN_SPEED],
+    [PROP_POWER, PROP_MODE, PROP_FAN_SPEED, PROP_AQ_LEVEL, PROP_PM25],
     [PROP_TIMER, NP10_PROP_CHILD_LOCK],
     [NP10_PROP_PREFILTER_LIFE, NP10_PROP_PREFILTER_DAYS_LEFT, NP10_PROP_ELECTRODE_LIFE, NP10_PROP_ELECTRODE_DAYS_LEFT],
 ]
@@ -359,7 +360,9 @@ class DreameAirPurifier:
             if values:
                 all_values.update(values)
         if self.is_np10 and all_values:  # only when the device itself answered
-            all_values.update(self._api.get_cached_properties(self._did, [PROP_AQ_LEVEL, PROP_PM25]))
+            missing = [p for p in (PROP_AQ_LEVEL, PROP_PM25) if (p["siid"], p["piid"]) not in all_values]
+            if missing:
+                all_values.update(self._api.get_cached_properties(self._did, missing))
         if not all_values:
             self._available = False
             return False

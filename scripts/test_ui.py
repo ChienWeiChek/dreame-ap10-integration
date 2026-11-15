@@ -10,8 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from probe_properties import api_mod, load_env
 
-# The 17 properties the NP10 probe found; editable on the page.
-DEFAULT_PROPS = "2.1 2.2 2.3 2.4 3.12 4.7 4.8 4.9 4.10 4.11 4.12 6.1 6.3 6.4 6.8 6.10 6.15"
+# Properties known on the NP10 (3.4/3.5 only exist in the cloud cache); editable on the page.
+DEFAULT_PROPS = "2.1 2.2 2.3 2.4 3.4 3.5 3.12 4.7 4.8 4.9 4.10 4.11 4.12 6.1 6.3 6.4 6.8 6.10 6.15"
 _client = None
 _devices = {}  # did -> bindDomain host
 
@@ -55,6 +55,12 @@ def handle(req):
         result = []
         for i in range(0, len(params), 5):  # small batches: big get_properties calls time out
             result.append(c.send_command(did, "get_properties", params[i:i + 5], host))
+        # Props the device didn't answer: fall back to the cloud cache (notify-only values like PM2.5)
+        got = {(p["siid"], p["piid"]) for batch in result if isinstance(batch, list) for p in batch if p.get("code") == 0}
+        missing = [{"siid": p["siid"], "piid": p["piid"]} for p in params if (p["siid"], p["piid"]) not in got]
+        if missing:
+            cached = c.get_cached_properties(did, missing)
+            result.append([{"siid": s, "piid": p, "code": 0, "value": v, "cloud": True} for (s, p), v in cached.items()])
         return result
     if op == "set":
         value = json.loads(req["value"])  # 1, "text", true ...
@@ -107,7 +113,7 @@ function log(label,data){$('log').textContent=new Date().toLocaleTimeString()+' 
 async function call(body){const r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();log(body.op+(r.ok?'':' ERROR'),j);if(!r.ok)throw j;return j}
 async function devices(){const ds=await call({op:'devices'});$('dev').innerHTML=ds.map(d=>`<option value="${d.did}">${d.name} (${d.model})</option>`).join('')}
 async function read(){$('rmsg').textContent='reading…';const res=await call({op:'read',did:$('dev').value,props:$('props').value});
- const now={};res.flat().forEach(p=>{if(p&&p.siid)now[p.siid+'.'+p.piid]=p.code===0?JSON.stringify(p.value):'err '+p.code});
+ const now={};res.flat().forEach(p=>{if(p&&p.siid)now[p.siid+'.'+p.piid]=p.code===0?JSON.stringify(p.value)+(p.cloud?' (cloud)':''):'err '+p.code});
  $('tbl').innerHTML='<tr><th>prop</th><th>value</th><th>before</th></tr>'+Object.keys(now).map(k=>`<tr><td>${k}</td><td class="${k in last&&last[k]!==now[k]?'chg':''}">${now[k]}</td><td>${last[k]??''}</td></tr>`).join('');
  $('rmsg').textContent=Object.keys(now).length?'':'no data (offline or deep standby?)';last=now}
 async function setp(s,p,v){await call({op:'set',did:$('dev').value,siid:s,piid:p,value:String(v)});setTimeout(read,2000)}
