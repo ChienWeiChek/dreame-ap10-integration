@@ -9,7 +9,8 @@ from .const import DOMAIN
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([DreameFilterResetButton(data["coordinator"], p) for p in data["purifiers"]])
+    # NP10 filter reset action is not probed yet
+    async_add_entities([DreameFilterResetButton(data["coordinator"], p) for p in data["purifiers"] if not p.is_np10])
 
 class DreameFilterResetButton(CoordinatorEntity, ButtonEntity):
     _attr_has_entity_name = True

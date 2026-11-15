@@ -66,6 +66,24 @@ TIMER_MAX_HOURS = 12
 # Power: MUST use toggle action (set_properties times out on siid 2 piid 1)
 ACTION_TOGGLE_POWER = {"siid": 2, "aiid": 3}
 
+# === dreame.airp.u2532 (Dreame NP10) ===
+# Probed 2026-11-15. Power/mode/speed/timer share AP10 codes; child lock moved to 6/10.
+# No readable PM2.5 (3/12 never matched the app). Light/voice/tone/play/location absent.
+NP10_MODEL = "dreame.airp.u2532"
+NP10_MODES = [MODE_AI_PURIFY, MODE_SLEEP_PURIFICATION, MODE_CUSTOM]
+NP10_SPEED_COUNT = 3
+NP10_PROP_CHILD_LOCK = {"siid": 6, "piid": 10}
+# Days-left values (30 / 90) matched the app; life % placement is inferred from adjacency.
+NP10_PROP_PREFILTER_LIFE = {"siid": 4, "piid": 7}
+NP10_PROP_PREFILTER_DAYS_LEFT = {"siid": 4, "piid": 8}
+NP10_PROP_ELECTRODE_LIFE = {"siid": 4, "piid": 9}
+NP10_PROP_ELECTRODE_DAYS_LEFT = {"siid": 4, "piid": 10}
+NP10_POLL_BATCHES = [
+    [PROP_POWER, PROP_MODE, PROP_FAN_SPEED],
+    [PROP_TIMER, NP10_PROP_CHILD_LOCK],
+    [NP10_PROP_PREFILTER_LIFE, NP10_PROP_PREFILTER_DAYS_LEFT, NP10_PROP_ELECTRODE_LIFE, NP10_PROP_ELECTRODE_DAYS_LEFT],
+]
+
 
 class DreameCloudAPI:
     """Client for the Dreame Cloud API."""
@@ -235,7 +253,15 @@ class DreameAirPurifier:
         self._play_mode = False
         self._voice_interaction = False
         self._timer_hours = 0
+        self._prefilter_life = None
+        self._prefilter_days_left = None
+        self._electrode_life = None
+        self._electrode_days_left = None
         self._available = True
+        self.is_np10 = self._model == NP10_MODEL
+        self.speed_count = NP10_SPEED_COUNT if self.is_np10 else 5
+        self.preset_modes = [MODE_NAMES[m] for m in (NP10_MODES if self.is_np10 else MODE_NAMES)]
+        self._child_lock_prop = NP10_PROP_CHILD_LOCK if self.is_np10 else PROP_CHILD_LOCK
 
     @property
     def unique_id(self): return self._mac.replace(":", "").lower()
@@ -265,7 +291,7 @@ class DreameAirPurifier:
     @property
     def fan_speed(self): return self._fan_speed
     @property
-    def fan_speed_percent(self): return max(0, self._fan_speed * 20) if self._fan_speed > 0 else 0
+    def fan_speed_percent(self): return round(self._fan_speed * 100 / self.speed_count) if self._fan_speed > 0 else 0
     @property
     def light_control(self): return self._light_control
     @property
@@ -296,10 +322,18 @@ class DreameAirPurifier:
     def voice_interaction(self): return self._voice_interaction
     @property
     def timer_hours(self): return self._timer_hours
+    @property
+    def prefilter_life(self): return self._prefilter_life
+    @property
+    def prefilter_days_left(self): return self._prefilter_days_left
+    @property
+    def electrode_life(self): return self._electrode_life
+    @property
+    def electrode_days_left(self): return self._electrode_days_left
 
     def update(self) -> bool:
         all_values = {}
-        for batch in POLL_BATCHES:
+        for batch in (NP10_POLL_BATCHES if self.is_np10 else POLL_BATCHES):
             values = self._api.get_properties(self._did, batch, self._host)
             if values:
                 all_values.update(values)
@@ -319,7 +353,11 @@ class DreameAirPurifier:
         self._filter_days_left = all_values.get((4, 2), self._filter_days_left)
         self._filter_used = all_values.get((4, 3), self._filter_used)
         self._device_location = all_values.get((6, 3), self._device_location)
-        self._child_lock = bool(all_values.get((6, 5), self._child_lock))
+        self._child_lock = bool(all_values.get((self._child_lock_prop["siid"], self._child_lock_prop["piid"]), self._child_lock))
+        self._prefilter_life = all_values.get((4, 7), self._prefilter_life) if self.is_np10 else None
+        self._prefilter_days_left = all_values.get((4, 8), self._prefilter_days_left) if self.is_np10 else None
+        self._electrode_life = all_values.get((4, 9), self._electrode_life) if self.is_np10 else None
+        self._electrode_days_left = all_values.get((4, 10), self._electrode_days_left) if self.is_np10 else None
         self._play_mode = bool(all_values.get((6, 6), self._play_mode))
         self._voice_interaction = bool(all_values.get((6, 7), self._voice_interaction))
         self._timer_hours = all_values.get((6, 8), self._timer_hours)
@@ -349,14 +387,14 @@ class DreameAirPurifier:
         return self._api.set_property(self._did, 2, 3, mode, self._host)
 
     def set_fan_speed(self, speed: int) -> bool:
-        return self._api.set_property(self._did, 2, 4, max(1, min(5, speed)), self._host)
+        return self._api.set_property(self._did, 2, 4, max(1, min(self.speed_count, speed)), self._host)
 
     def set_fan_speed_percent(self, percent: int) -> bool:
         if percent <= 0:
             return self.turn_off()
         if self._mode != MODE_CUSTOM and not self.set_mode(MODE_CUSTOM):
             return False
-        return self.set_fan_speed(max(1, min(5, round(percent / 20))))
+        return self.set_fan_speed(round(percent * self.speed_count / 100))
 
     def set_light_control(self, value: int) -> bool:
         if value not in LIGHT_CONTROL_VALUE_TO_OPTION:
@@ -372,7 +410,7 @@ class DreameAirPurifier:
         return self._api.set_property(self._did, 2, 7, 1 if enabled else 0, self._host)
 
     def set_child_lock(self, enabled: bool) -> bool:
-        return self._api.set_property(self._did, 6, 5, 1 if enabled else 0, self._host)
+        return self._api.set_property(self._did, self._child_lock_prop["siid"], self._child_lock_prop["piid"], 1 if enabled else 0, self._host)
 
     def set_play_mode(self, enabled: bool) -> bool:
         return self._api.set_property(self._did, 6, 6, 1 if enabled else 0, self._host)

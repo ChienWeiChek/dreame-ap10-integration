@@ -87,6 +87,22 @@ Verified on `dreame.airp.u2507`. Do not assume this matches PM10, MF10, or other
 
 Power uses toggle action `siid=2, aiid=3`. Direct writes to power (`siid=2, piid=1`) time out. Filter reset is action `siid=4, aiid=1`.
 
+## NP10 property map (experimental)
+
+Probed on `dreame.airp.u2532` (app name "Air Purifier NP10") with `scripts/probe_properties.py`. Power, mode, speed and timer share AP-10 codes. Exposed entities: fan (AI Purify / Sleep Purification / Custom Mode, speed 1–3), child lock, timer, pre-filter and high-voltage electrode life and days left. No PM2.5, light, voice, or filter reset yet.
+
+| siid | piid | Property | Values |
+|------|------|----------|--------|
+| 2 | 1 | Power | 1=on |
+| 2 | 3 | Mode | 0=AI Purify, 2=Sleep, 3=Custom |
+| 2 | 4 | Fan speed | 1–3 |
+| 4 | 7 / 8 | Pre-filter life % / days left | life % placement inferred |
+| 4 | 9 / 10 | Electrode life % / days left | life % placement inferred |
+| 6 | 8 | Delayed power off | hours |
+| 6 | 10 | Child lock | 0=off, 1=on |
+
+Power on/off uses the same Sleep + speed 1 soft-off as the AP-10; the power toggle action has not been verified on the NP10.
+
 ## Troubleshooting
 
 - **Login fails** — same credentials as Dreamehome; pick the region your account was created in

@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import DreameAirPurifier, MODE_NAME_TO_VALUE
-from .const import DOMAIN, PRESET_MODES
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,17 +25,16 @@ class DreameAirPurifierFan(CoordinatorEntity, FanEntity):
 
     _attr_has_entity_name = True
     _attr_name = None
-    _attr_speed_count = 5  # 5 speed levels
-
     def __init__(self, coordinator, purifier: DreameAirPurifier):
         super().__init__(coordinator)
         self._purifier = purifier
+        self._attr_speed_count = purifier.speed_count
         self._attr_unique_id = f"{purifier.unique_id}_fan"
         self._attr_supported_features = (
             FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
             | FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
         )
-        self._attr_preset_modes = PRESET_MODES
+        self._attr_preset_modes = purifier.preset_modes
 
     @property
     def device_info(self):

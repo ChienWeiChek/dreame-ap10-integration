@@ -11,6 +11,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     data = hass.data[DOMAIN][entry.entry_id]
     entities = []
     for p in data["purifiers"]:
+        if p.is_np10:
+            continue  # NP10 has no light or voice properties
         entities.extend([DreameLightControlSelect(data["coordinator"], p), DreameVoiceInteractionVolumeSelect(data["coordinator"], p)])
     async_add_entities(entities)
 

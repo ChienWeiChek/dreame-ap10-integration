@@ -15,6 +15,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     data = hass.data[DOMAIN][entry.entry_id]
     entities = []
     for p in data["purifiers"]:
+        if p.is_np10:
+            c = data["coordinator"]
+            entities.extend([
+                DreameNP10FilterSensor(c, p, "prefilter_life", "Pre-filter", "prefilter_life", PERCENTAGE, "mdi:air-filter"),
+                DreameNP10FilterSensor(c, p, "prefilter_days_left", "Pre-filter Days Left", "prefilter_days_left", UnitOfTime.DAYS, "mdi:calendar-clock"),
+                DreameNP10FilterSensor(c, p, "electrode_life", "High-voltage Electrode", "electrode_life", PERCENTAGE, "mdi:flash"),
+                DreameNP10FilterSensor(c, p, "electrode_days_left", "High-voltage Electrode Days Left", "electrode_days_left", UnitOfTime.DAYS, "mdi:calendar-clock"),
+            ])
+            continue
         entities.extend([DreamePM25Sensor(data["coordinator"], p), DreameAirQualitySensor(data["coordinator"], p),
                          DreameFilterLifeSensor(data["coordinator"], p), DreameFilterDaysLeftSensor(data["coordinator"], p),
                          DreameFilterUsedSensor(data["coordinator"], p), DreameDeviceLocationSensor(data["coordinator"], p)])
@@ -77,3 +86,13 @@ class DreameDeviceLocationSensor(DreameBaseSensor):
     def __init__(self, coordinator, purifier): super().__init__(coordinator, purifier, "device_location", "Device Location")
     @property
     def native_value(self): return self._purifier.device_location
+
+class DreameNP10FilterSensor(DreameBaseSensor):
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    def __init__(self, coordinator, purifier, key, name, attr, unit, icon):
+        super().__init__(coordinator, purifier, key, name)
+        self._value_attr = attr
+        self._attr_native_unit_of_measurement = unit
+        self._attr_icon = icon
+    @property
+    def native_value(self): return getattr(self._purifier, self._value_attr)
