@@ -18,6 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if p.is_np10:
             c = data["coordinator"]
             entities.extend([
+                DreamePM25Sensor(c, p), DreameAirQualitySensor(c, p),
                 DreameNP10FilterSensor(c, p, "prefilter_life", "Pre-filter", "prefilter_life", PERCENTAGE, "mdi:air-filter"),
                 DreameNP10FilterSensor(c, p, "prefilter_days_left", "Pre-filter Days Left", "prefilter_days_left", UnitOfTime.DAYS, "mdi:calendar-clock"),
                 DreameNP10FilterSensor(c, p, "electrode_life", "High-voltage Electrode", "electrode_life", PERCENTAGE, "mdi:flash"),

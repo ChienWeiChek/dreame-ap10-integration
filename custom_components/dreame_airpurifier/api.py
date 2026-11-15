@@ -68,7 +68,9 @@ ACTION_TOGGLE_POWER = {"siid": 2, "aiid": 3}
 
 # === dreame.airp.u2532 (Dreame NP10) ===
 # Probed 2026-11-15. Power/mode/speed/timer share AP10 codes; child lock moved to 6/10.
-# No readable PM2.5 (3/12 never matched the app). Light/voice/tone/play/location absent.
+# PM2.5 (3/5) and air quality level (3/4, 1=Excellent) are notify-only: get_properties
+# never returns them, so they come from the cloud cache (matched the app). 3/12 is unknown.
+# Light/voice/tone/play/location absent.
 NP10_MODEL = "dreame.airp.u2532"
 NP10_MODES = [MODE_AI_PURIFY, MODE_SLEEP_PURIFICATION, MODE_CUSTOM]
 NP10_SPEED_COUNT = 3
@@ -212,6 +214,25 @@ class DreameCloudAPI:
                     values[(prop["siid"], prop["piid"])] = prop.get("value")
         return values
 
+    def get_cached_properties(self, did: str, properties: list) -> dict:
+        """Cloud-cached values the device pushes; covers notify-only props get_properties can't read."""
+        if not self._refresh_login():
+            return {}
+        url = f"{self.api_url}/dreame-user-iot/iotstatus/props"
+        keys = ",".join(f"{p['siid']}.{p['piid']}" for p in properties)
+        values = {}
+        try:
+            r = self._session.post(url, headers=self._auth_headers(), json={"did": str(did), "keys": keys}, timeout=10)
+            if r.status_code == 200 and isinstance(r.json().get("data"), list):
+                for item in r.json()["data"]:
+                    value, (siid, _, piid) = item.get("value"), item.get("key", "").partition(".")
+                    if value in (None, "") or not siid.isdigit() or not piid.isdigit():
+                        continue
+                    values[(int(siid), int(piid))] = int(value) if value.lstrip("-").isdigit() else value
+        except Exception as ex:
+            _LOGGER.error("Failed to get cached properties: %s", ex)
+        return values
+
     def set_property(self, did: str, siid: int, piid: int, value, host: str = None) -> bool:
         result = self.send_command(did, "set_properties", [{"did": str(did), "siid": siid, "piid": piid, "value": value}], host)
         if result and isinstance(result, list) and len(result) > 0:
@@ -337,6 +358,8 @@ class DreameAirPurifier:
             values = self._api.get_properties(self._did, batch, self._host)
             if values:
                 all_values.update(values)
+        if self.is_np10 and all_values:  # only when the device itself answered
+            all_values.update(self._api.get_cached_properties(self._did, [PROP_AQ_LEVEL, PROP_PM25]))
         if not all_values:
             self._available = False
             return False

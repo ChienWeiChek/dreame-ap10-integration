@@ -15,6 +15,9 @@ class FakeAPI:
     def get_properties(self, did, props, host=None):
         return {(p["siid"], p["piid"]): self.values[(p["siid"], p["piid"])] for p in props if (p["siid"], p["piid"]) in self.values}
 
+    def get_cached_properties(self, did, props):
+        return self.get_properties(did, props)
+
     def set_property(self, did, siid, piid, value, host=None):
         self.writes.append((siid, piid, value))
         return True
@@ -22,13 +25,14 @@ class FakeAPI:
 
 # NP10 values captured from a real u2532 (Custom mode, speed 2, child lock on, timer 2h)
 np10_api = FakeAPI({(2, 1): 1, (2, 3): 3, (2, 4): 2, (6, 8): 2, (6, 10): 1,
-                    (4, 7): 100, (4, 8): 30, (4, 9): 100, (4, 10): 90})
+                    (4, 7): 100, (4, 8): 30, (4, 9): 100, (4, 10): 90, (3, 4): 1, (3, 5): 13})
 np10 = api.DreameAirPurifier(np10_api, {"did": 1, "model": "dreame.airp.u2532", "mac": "AA:BB"})
 assert np10.update()
 assert np10.is_np10 and np10.speed_count == 3
 assert np10.preset_modes == ["AI Purify", "Sleep Purification", "Custom Mode"]
 assert np10.mode == "Custom Mode" and np10.fan_speed_percent == 67 and np10.is_on
 assert np10.child_lock is True and np10.timer_hours == 2
+assert np10.pm25 == 13 and np10.air_quality_level == 1  # from the cloud cache
 assert (np10.prefilter_life, np10.prefilter_days_left, np10.electrode_life, np10.electrode_days_left) == (100, 30, 100, 90)
 np10.set_child_lock(False)
 np10.set_fan_speed_percent(100)
