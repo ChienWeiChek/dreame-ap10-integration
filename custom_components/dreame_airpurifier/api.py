@@ -80,6 +80,7 @@ NP10_PROP_CHILD_LOCK = {"siid": 6, "piid": 10}
 NP10_PROP_LIGHT = {"siid": 6, "piid": 23}
 NP10_LIGHT_OPTIONS = {"Off": 0, "Ambient light": 4, "Air quality": 5}
 NP10_LIGHT_VALUE_TO_OPTION = {v: k for k, v in NP10_LIGHT_OPTIONS.items()}
+NP10_PROP_CONTINUOUS_MONITORING = {"siid": 6, "piid": 15}  # 0=off, 1=on; mapped from the app, write confirmed
 # Days-left values (30 / 90) matched the app; life % placement is inferred from adjacency.
 NP10_PROP_PREFILTER_LIFE = {"siid": 4, "piid": 7}
 NP10_PROP_PREFILTER_DAYS_LEFT = {"siid": 4, "piid": 8}
@@ -87,7 +88,7 @@ NP10_PROP_ELECTRODE_LIFE = {"siid": 4, "piid": 9}
 NP10_PROP_ELECTRODE_DAYS_LEFT = {"siid": 4, "piid": 10}
 NP10_POLL_BATCHES = [
     [PROP_POWER, PROP_MODE, PROP_FAN_SPEED, PROP_AQ_LEVEL, PROP_PM25],
-    [PROP_TIMER, NP10_PROP_CHILD_LOCK, NP10_PROP_LIGHT],
+    [PROP_TIMER, NP10_PROP_CHILD_LOCK, NP10_PROP_LIGHT, NP10_PROP_CONTINUOUS_MONITORING],
     [NP10_PROP_PREFILTER_LIFE, NP10_PROP_PREFILTER_DAYS_LEFT, NP10_PROP_ELECTRODE_LIFE, NP10_PROP_ELECTRODE_DAYS_LEFT],
 ]
 
@@ -284,6 +285,7 @@ class DreameAirPurifier:
         self._electrode_life = None
         self._electrode_days_left = None
         self._np10_light = None
+        self._continuous_monitoring = False
         self._available = True
         self.is_np10 = self._model == NP10_MODEL
         self.speed_count = NP10_SPEED_COUNT if self.is_np10 else 5
@@ -359,6 +361,8 @@ class DreameAirPurifier:
     def electrode_days_left(self): return self._electrode_days_left
     @property
     def np10_light_option(self): return NP10_LIGHT_VALUE_TO_OPTION.get(self._np10_light)
+    @property
+    def continuous_monitoring(self): return self._continuous_monitoring
 
     def update(self) -> bool:
         all_values = {}
@@ -392,6 +396,7 @@ class DreameAirPurifier:
         self._electrode_life = all_values.get((4, 9), self._electrode_life) if self.is_np10 else None
         self._electrode_days_left = all_values.get((4, 10), self._electrode_days_left) if self.is_np10 else None
         self._np10_light = all_values.get((6, 23), self._np10_light) if self.is_np10 else None
+        self._continuous_monitoring = bool(all_values.get((6, 15), self._continuous_monitoring)) if self.is_np10 else False
         self._play_mode = bool(all_values.get((6, 6), self._play_mode))
         self._voice_interaction = bool(all_values.get((6, 7), self._voice_interaction))
         self._timer_hours = all_values.get((6, 8), self._timer_hours)
@@ -447,6 +452,11 @@ class DreameAirPurifier:
         if not self.is_np10 or value not in NP10_LIGHT_VALUE_TO_OPTION:
             return False
         return self._api.set_property(self._did, 6, 23, value, self._host)
+
+    def set_continuous_monitoring(self, enabled: bool) -> bool:
+        if not self.is_np10:
+            return False
+        return self._api.set_property(self._did, 6, 15, 1 if enabled else 0, self._host)
 
     def set_voice_interaction_volume(self, value: int) -> bool:
         if value not in VOICE_INTERACTION_VOLUME_VALUE_TO_OPTION:

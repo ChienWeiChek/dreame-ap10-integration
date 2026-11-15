@@ -16,7 +16,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
     for p in data["purifiers"]:
         if p.is_np10:
-            entities.append(DreameChildLockSwitch(data["coordinator"], p))  # only switch the NP10 has
+            entities.extend([DreameChildLockSwitch(data["coordinator"], p), DreameContinuousMonitoringSwitch(data["coordinator"], p)])
             continue
         entities.extend([DreameChildLockSwitch(data["coordinator"], p), DreamePlayModeSwitch(data["coordinator"], p),
                          DreameVoiceInteractionSwitch(data["coordinator"], p), DreameKeypressToneSwitch(data["coordinator"], p)])
@@ -66,3 +66,11 @@ class DreameKeypressToneSwitch(DreameBaseSwitch):
     def is_on(self): return self._purifier.keypress_tone
     async def async_turn_on(self, **kwargs): await self.hass.async_add_executor_job(self._purifier.set_keypress_tone, True); await self.coordinator.async_request_refresh()
     async def async_turn_off(self, **kwargs): await self.hass.async_add_executor_job(self._purifier.set_keypress_tone, False); await self.coordinator.async_request_refresh()
+
+class DreameContinuousMonitoringSwitch(DreameBaseSwitch):
+    _attr_icon = "mdi:eye-check"
+    def __init__(self, c, p): super().__init__(c, p, "continuous_monitoring", "Continuous Monitoring")
+    @property
+    def is_on(self): return self._purifier.continuous_monitoring
+    async def async_turn_on(self, **kwargs): await self.hass.async_add_executor_job(self._purifier.set_continuous_monitoring, True); await self.coordinator.async_request_refresh()
+    async def async_turn_off(self, **kwargs): await self.hass.async_add_executor_job(self._purifier.set_continuous_monitoring, False); await self.coordinator.async_request_refresh()

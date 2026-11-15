@@ -107,6 +107,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:320px;ov
 <div class="row">Speed: <button onclick="setp(2,4,1)">1</button><button onclick="setp(2,4,2)">2</button><button onclick="setp(2,4,3)">3</button></div>
 <div class="row">Child lock: <button onclick="setp(6,10,1)">On</button><button onclick="setp(6,10,0)">Off</button>
 &nbsp; Timer: <button onclick="setp(6,8,0)">Off</button><button onclick="setp(6,8,1)">1 h</button></div>
+<div class="row">Continuous monitoring: <button onclick="setp(6,15,1)">On</button><button onclick="setp(6,15,0)">Off</button></div>
 <div class="row">Light: <button onclick="setp(6,23,0)">Off</button><button onclick="setp(6,23,4)">Ambient light</button><button onclick="setp(6,23,5)">Air quality</button></div></section>
 
 <section><h2>Set property</h2>
@@ -126,7 +127,7 @@ function status(v){const has=k=>k in v,t=(l,x)=>`<div class="tile"><b>${l}</b><s
  $('status').innerHTML=[t('Power',{1:'On',2:'Off (standby)'}[v['2.1']]??(has('2.1')?'? '+v['2.1']:'–')),
   t('Mode',has('2.3')?MODES[v['2.3']]??'? '+v['2.3']:'–'),t('Fan speed',v['2.4']??'–'),
   t('PM2.5',has('3.5')?v['3.5']+' µg/m³':'–'),t('Air quality',has('3.4')?AQ[v['3.4']]??'level '+v['3.4']:'–'),
-  t('Child lock',has('6.10')?(v['6.10']?'On':'Off'):'–'),t('Light',has('6.23')?{0:'Off',4:'Ambient light',5:'Air quality'}[v['6.23']]??'? '+v['6.23']:'–'),t('Delayed power off',has('6.8')?(v['6.8']?v['6.8']+' h':'OFF'):'–'),
+  t('Child lock',has('6.10')?(v['6.10']?'On':'Off'):'–'),t('Continuous monitoring',has('6.15')?(v['6.15']?'On':'Off'):'–'),t('Light',has('6.23')?{0:'Off',4:'Ambient light',5:'Air quality'}[v['6.23']]??'? '+v['6.23']:'–'),t('Delayed power off',has('6.8')?(v['6.8']?v['6.8']+' h':'OFF'):'–'),
   t('Pre-filter',pct('4.7')+' · '+d('4.8')),t('High-voltage electrode',pct('4.9')+' · '+d('4.10'))].join('');
  $('stime').textContent='updated '+new Date().toLocaleTimeString()}
 let timer=null,busy=false;
