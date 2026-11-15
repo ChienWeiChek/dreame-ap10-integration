@@ -85,10 +85,17 @@ input.n{width:4.5em}input.w{width:100%;box-sizing:border-box}
 .warn{color:var(--warn);font-size:13px}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}td,th{text-align:left;padding:3px 8px;border-bottom:1px solid var(--line)}
 td.chg{color:var(--accent);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.tile b{display:block;font-size:12px;font-weight:500;opacity:.7}.tile span{font-size:18px;font-variant-numeric:tabular-nums}
 pre{white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:320px;overflow:auto;margin:0}
 </style></head><body>
 <h1>Dreame Test Bench</h1>
 <section><div class="row"><button onclick="devices()">Load devices</button><select id="dev" aria-label="Device"></select></div></section>
+
+<section><h2>Current status <span class="warn" id="stime" style="font-weight:400"></span></h2>
+<div id="status" class="grid" aria-live="polite"><span class="warn">Load devices, then Read.</span></div>
+<div class="row"><label><input type="checkbox" id="auto" onchange="autoRead()"> Auto-refresh every 15 s</label></div></section>
 
 <section><h2>Read properties</h2>
 <div class="row"><input id="props" class="w" aria-label="Properties (siid.piid)" value="__PROPS__"></div>
@@ -112,8 +119,21 @@ const $=id=>document.getElementById(id); let last={};
 function log(label,data){$('log').textContent=new Date().toLocaleTimeString()+'  '+label+'\\n'+JSON.stringify(data,null,1)+'\\n\\n'+$('log').textContent}
 async function call(body){const r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();log(body.op+(r.ok?'':' ERROR'),j);if(!r.ok)throw j;return j}
 async function devices(){const ds=await call({op:'devices'});$('dev').innerHTML=ds.map(d=>`<option value="${d.did}">${d.name} (${d.model})</option>`).join('')}
-async function read(){$('rmsg').textContent='reading…';const res=await call({op:'read',did:$('dev').value,props:$('props').value});
- const now={};res.flat().forEach(p=>{if(p&&p.siid)now[p.siid+'.'+p.piid]=p.code===0?JSON.stringify(p.value)+(p.cloud?' (cloud)':''):'err '+p.code});
+// Labels as the Dreamehome app shows them (NP10 map; see README)
+const MODES={0:'AI Purify',1:'Strong Purification',2:'Sleep Purification',3:'Custom',4:'Pet Purify'},AQ={1:'Excellent'};
+function status(v){const has=k=>k in v,t=(l,x)=>`<div class="tile"><b>${l}</b><span>${x}</span></div>`,pct=k=>has(k)?v[k]+'%':'–',d=k=>has(k)?v[k]+' days':'–';
+ $('status').innerHTML=[t('Power',{1:'On',2:'Off (standby)'}[v['2.1']]??(has('2.1')?'? '+v['2.1']:'–')),
+  t('Mode',has('2.3')?MODES[v['2.3']]??'? '+v['2.3']:'–'),t('Fan speed',v['2.4']??'–'),
+  t('PM2.5',has('3.5')?v['3.5']+' µg/m³':'–'),t('Air quality',has('3.4')?AQ[v['3.4']]??'level '+v['3.4']:'–'),
+  t('Child lock',has('6.10')?(v['6.10']?'On':'Off'):'–'),t('Delayed power off',has('6.8')?(v['6.8']?v['6.8']+' h':'OFF'):'–'),
+  t('Pre-filter',pct('4.7')+' · '+d('4.8')),t('High-voltage electrode',pct('4.9')+' · '+d('4.10'))].join('');
+ $('stime').textContent='updated '+new Date().toLocaleTimeString()}
+let timer=null,busy=false;
+function autoRead(){clearInterval(timer);timer=$('auto').checked?setInterval(()=>{if(!busy&&$('dev').value)read()},15000):null}
+async function read(){busy=true;try{await doRead()}finally{busy=false}}
+async function doRead(){$('rmsg').textContent='reading…';const res=await call({op:'read',did:$('dev').value,props:$('props').value});
+ const now={},vals={};res.flat().forEach(p=>{if(p&&p.siid&&p.code===0)vals[p.siid+'.'+p.piid]=p.value});status(vals);
+ res.flat().forEach(p=>{if(p&&p.siid)now[p.siid+'.'+p.piid]=p.code===0?JSON.stringify(p.value)+(p.cloud?' (cloud)':''):'err '+p.code});
  $('tbl').innerHTML='<tr><th>prop</th><th>value</th><th>before</th></tr>'+Object.keys(now).map(k=>`<tr><td>${k}</td><td class="${k in last&&last[k]!==now[k]?'chg':''}">${now[k]}</td><td>${last[k]??''}</td></tr>`).join('');
  $('rmsg').textContent=Object.keys(now).length?'':'no data (offline or deep standby?)';last=now}
 async function setp(s,p,v){await call({op:'set',did:$('dev').value,siid:s,piid:p,value:String(v)});setTimeout(read,2000)}
